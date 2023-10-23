@@ -2,8 +2,9 @@ import svg.path
 import numpy as np
 
 from typing import List
-from svg_parse.read import SvgPathExtractor
 from scipy.interpolate import interp1d
+
+from svg_parse.read import SvgPathExtractor
 
 class SvgToPoints:
     def __init__(self, file_path: str, samples: int) -> None:
@@ -11,31 +12,10 @@ class SvgToPoints:
         self.path_extractor = SvgPathExtractor(file_path)
         self.paths = self.path_extractor.get_paths()
         
-        # Parse
         self.samples = samples
         assert self.samples > 1
 
-        self.path_data = []
-        for path in self.paths:
-            self.path_data.append(svg.path.parse_path(path))
-
-        self.point_data = []
-        for path in self.path_data:
-            points = self.get_points_from_path(path)
-            self.point_data.append(points)
-
-        self.point_data_xy = []
-        for points in self.point_data:
-            xy_points = []
-            for point in points:
-                xy_points.append(self.svg_point_to_coordinate(point))
-            self.point_data_xy.append(xy_points)
-
-        self.concatinated_point_data_xy = []
-        for points in self.point_data_xy:
-            self.concatinated_point_data_xy += points
-
-        # Parse 2
+        # Parse fix
         self.svg_paths = self.path_extractor.svg_paths
         self.svg_points = []
         for g in self.svg_paths:
@@ -62,9 +42,9 @@ class SvgToPoints:
                 point_data_xy.append(xy_points)
             
             for points in point_data_xy:
-                self.svg_points += points
+                self.svg_points.append(points)
 
-        self.svg_points_normalized = self.normalize_points(self.svg_points)
+        self.svg_points_normalized = self.normalize_array_points(self.svg_points)
 
     """ ==================================================== """
     def normalize_points(self, points):
@@ -89,15 +69,38 @@ class SvgToPoints:
             y_new = map_y(y)
             new_points.append([x_new, y_new])
         return new_points
+    
+    def normalize_array_points(self, point_data_xy: List):
+        x_min, x_max = 1 << 32, -(1 << 32)
+        y_min, y_max = 1 << 32, -(1 << 32)
+        for points in point_data_xy:
+            for [x, y] in points:
+                if x < x_min:
+                    x_min = x
+                if x > x_max:
+                    x_max = x
+                if y < y_min:
+                    y_min = y
+                if y > y_max:
+                    y_max = y
+
+        map_x = interp1d([x_min, x_max], [-1.0, 1.0])
+        map_y = interp1d([y_min, y_max], [-1.0, 1.0])
+
+        normalized_point_data = []
+        for points in point_data_xy:
+            normalized_points = []
+            for [x, y] in points:
+                x_new = map_x(x)
+                y_new = map_y(y)
+                normalized_points.append([x_new, y_new])
+            normalized_point_data.append(normalized_points)
+        return normalized_point_data
 
     def svg_point_to_coordinate(self, point: complex) -> List:
         return [point.real, point.imag]
     
     def get_points_from_path(self, path):
-        if self.path_data == []:
-            print("No path data has been initilized")
-            return
-
         points = []
         for segment in path:
             if isinstance(segment, svg.path.Line):

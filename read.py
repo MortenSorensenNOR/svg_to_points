@@ -1,5 +1,7 @@
-from typing import List
+import re
 import xml.etree.ElementTree as ET
+
+from typing import List
 
 """
 TODO:
@@ -15,9 +17,9 @@ class SvgPathExtractor:
 
         self.svg_g = self.get_g_elements()
         self.svg_paths = self.get_paths_from_g(self.svg_g)
-    
+        
     def get_g_elements(self):
-        return self.get_g_elements_util(self.root)
+        return self.get_g_elements_util(self.root)  
 
     def get_g_elements_util(self, root):
         root_tag = "".join(root.tag.split("{http://www.w3.org/2000/svg}"))
@@ -41,6 +43,7 @@ class SvgPathExtractor:
                     scale["y"] = float(scale_xy[1])
 
             paths = self.get_paths_util(g)
+
             svg_paths.append({"scale": scale, "paths": paths})
         return svg_paths
             
@@ -56,5 +59,3 @@ class SvgPathExtractor:
         for child in root:
             paths += self.get_paths_util(child)
         return paths
-    
-test = SvgPathExtractor("dickbutt.svg")
